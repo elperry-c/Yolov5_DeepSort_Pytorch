@@ -412,7 +412,7 @@ def run(
                 for sortID, data in enumerate(sort2):
                     if data.nameJP not in sortedName:
                         sortedName.append(data.nameJP)
-                        logger.debug(f'{listID}-{sortID}: {sortedName[sortedNameID]}')
+                        logger.debug(f'{listID}-{sortID}: {data.nameJP}')
             
         with open(path_textfile, 'w', encoding='UTF-8') as f:
             send_num = len(sortedName)
