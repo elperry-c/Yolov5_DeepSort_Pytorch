@@ -92,7 +92,18 @@ logger.addHandler(streamHandler)
 logger.addHandler(fileHandler)
 
 # --- 1.1 ---
-path_textfile = f'{ROOT}/output/send_py2net.txt' 
+path_textfile = f'{ROOT}/output/send_py2net.txt'
+
+# 画素数に応じて挿入ソート
+def insert_sort(arr):
+    for i in range(1, len(arr)):
+        j = i - 1
+        ele = arr[i]
+        while arr[j].sizeMean > ele.sizeMean and j >= 0:
+            arr[j + 1] = arr[j]
+            j -= 1
+        arr[j + 1] = ele
+    return arr
 # 追加ここまで ################################
 # #############################################
 
@@ -144,6 +155,9 @@ def run(
     # C#通信用のテキストファイルを作成 & 初期化 
     with open(path_textfile, 'w', encoding='UTF-8') as f:
         f.write('0\n')
+    # 連続視認時間の閾値
+    tooShortTime = 5#[秒]
+    tooLongTime = 30#[秒]
     # ###########################################
     # ###########################################
     source = str(source)
@@ -369,15 +383,46 @@ def run(
         # Print total time (preprocessing + inference + NMS + tracking)
         # #############################################
         # 変更ここから ################################ 0.5; 1.3; 
-        # LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{sum([dt.dt for dt in dt if hasattr(dt, 'dt')]) * 1E3:.1f}ms")
         processTime = sum([dt.dt for dt in dt if hasattr(dt, 'dt')])
         nowTime += processTime
         LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{processTime * 1E3:.1f}ms")
         logger.debug(f'プログラム実行時間: {nowTime}')
         for data in outputData:
             logger.debug(f'ID:{data.objectID}, {data.nameJP}, 画素数:{data.sizeList[-1]:.1f}, 平均画素数:{data.sizeMean:.1f}, 連続視認時間:{data.timeList[-1]:.1f}, 合計視認時間:{data.timeSum:.1f}, 最後に見てからの経過時間:{(nowTime - data.timeLastSeen):.1f}')
+        
         # --- 1.3 ---
-
+        sortedName = [] # outputDataのnameJPをソートして入れる (フレーム毎に初期化)
+        if len(outputData) <= 1:
+            for data in outputData:
+                sortedName.append(data.nameJP)
+                logger.debug(f'未ソート: {data.nameJP}')
+        else:
+            # ここからソートアルゴリズム (変更・改善の余地あり)
+            outputSort1 = [[] for sortID in range(2)] # outputDataを視認時間に応じて2次元配列に入れていく
+            # outputSort[0]:長すぎず短すぎない視認時間の物体  優先度高い
+            # outputSort[1]:長すぎるまたは短すぎる視認時間  優先度低い
+            for data in outputData:
+                outputSort1[int(data.timeSum < tooShortTime | tooLongTime < data.timeSum)].append(data)
+            
+            outputSort2 = [] # 画素数に応じてソートした結果を入れる
+            for sort1 in outputSort1:
+                outputSort2.append( insert_sort(sort1) ) # 配列が append されることで2次元配列になるはず
+            
+            for listID, sort2 in enumerate(outputSort2):
+                for sortID, data in enumerate(sort2):
+                    if data.nameJP not in sortedName:
+                        sortedName.append(data.nameJP)
+                        logger.debug(f'{listID}-{sortID}: {sortedName[sortedNameID]}')
+            
+        with open(path_textfile, 'w', encoding='UTF-8') as f:
+            send_num = len(sortedName)
+            # 上位5個しか送らない (この設定が不要な場合は下の2行をコメントアウト)
+            if send_num > 5:
+                send_num = 5
+            f.write(f'{send_num}\n')
+            for sortedNameID in range(send_num):
+                f.write(f'{sortedName[sortedNameID]}\n')
+                logger.debug(f'優先度{sortedNameID+1}: {sortedName[sortedNameID]}')
         # 変更ここまで ################################
         # #############################################
 
