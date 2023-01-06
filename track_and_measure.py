@@ -94,12 +94,12 @@ logger.addHandler(fileHandler)
 # --- 1.1 ---
 path_textfile = f'{ROOT}/output/send_py2net.txt'
 
-# 画素数に応じて挿入ソート
+# 画素数に応じて挿入ソート (降順)
 def insert_sort(arr):
     for i in range(1, len(arr)):
         j = i - 1
         ele = arr[i]
-        while arr[j].sizeMean > ele.sizeMean and j >= 0:
+        while arr[j].sizeMean < ele.sizeMean and j >= 0:
             arr[j + 1] = arr[j]
             j -= 1
         arr[j + 1] = ele
@@ -402,7 +402,7 @@ def run(
             # outputSort[0]:長すぎず短すぎない視認時間の物体  優先度高い
             # outputSort[1]:長すぎるまたは短すぎる視認時間  優先度低い
             for data in outputData:
-                outputSort1[int(data.timeSum < tooShortTime | tooLongTime < data.timeSum)].append(data)
+                outputSort1[int(data.timeSum < tooShortTime or tooLongTime < data.timeSum)].append(data)
             
             outputSort2 = [] # 画素数に応じてソートした結果を入れる
             for sort1 in outputSort1:
@@ -416,13 +416,13 @@ def run(
             
         with open(path_textfile, 'w', encoding='UTF-8') as f:
             send_num = len(sortedName)
-            # 上位5個しか送らない (この設定が不要な場合は下の2行をコメントアウト)
+            # 上位5個しか送らない (この設定が不要な場合は下2行をコメントアウト)
             if send_num > 5:
                 send_num = 5
             f.write(f'{send_num}\n')
             for sortedNameID in range(send_num):
                 f.write(f'{sortedName[sortedNameID]}\n')
-                logger.debug(f'優先度{sortedNameID+1}: {sortedName[sortedNameID]}')
+                logger.debug(f'優先順位{sortedNameID+1}: {sortedName[sortedNameID]}')
         # 変更ここまで ################################
         # #############################################
 
